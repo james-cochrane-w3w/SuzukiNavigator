@@ -127,3 +127,35 @@
   position: relative;
   overflow: hidden;
 }
+
+/* Leaflet map styles */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  z-index: 10;
+}
+
+.leaflet-control-container .leaflet-top,
+.leaflet-control-container .leaflet-bottom {
+  z-index: 900;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.leaflet-popup-content {
+  margin: 8px 12px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+}
+
+.leaflet-popup-close-button {
+  padding: 6px 6px 0 0;
+}
+
+.custom-icon {
+  background: transparent;
+  border: none;
+}

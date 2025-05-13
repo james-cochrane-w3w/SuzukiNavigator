@@ -1,7 +1,74 @@
-import React, { useRef, useEffect, useState } from "react";
-import mapboxgl from "mapbox-gl";
+import React, { useEffect, useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
 import { useQuery } from "@tanstack/react-query";
 import { Route } from "@/types";
+
+// Define custom icon components for markers
+const createCustomIcon = (iconName: string, color: string): L.DivIcon => {
+  return L.divIcon({
+    className: 'custom-icon',
+    html: `<span class="material-icons" style="color: ${color}; font-size: 2rem; filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.3));">${iconName}</span>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 24]
+  });
+};
+
+// Route polyline component
+function RouteLayer({ route }: { route?: Route }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (!route || !route.geometry) return;
+    
+    // Clear existing route layers
+    map.eachLayer((layer: L.Layer) => {
+      if ((layer as any)._path && (layer as any)._path.classList.contains('route-path')) {
+        map.removeLayer(layer);
+      }
+    });
+    
+    // Create polyline from route coordinates
+    const coordinates = route.geometry.coordinates.map(
+      ([lng, lat]) => [lat, lng] as [number, number]
+    );
+    
+    const polyline = L.polyline(coordinates, {
+      color: '#0C2E67', // Suzuki blue
+      weight: 8,
+      className: 'route-path'
+    }).addTo(map);
+    
+    // Fit map to bounds if available
+    if (route.bounds) {
+      const sw = L.latLng(route.bounds[0][1], route.bounds[0][0]);
+      const ne = L.latLng(route.bounds[1][1], route.bounds[1][0]);
+      const bounds = L.latLngBounds(sw, ne);
+      map.fitBounds(bounds, { padding: [50, 50] });
+    } else {
+      map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+    }
+    
+    return () => {
+      map.removeLayer(polyline);
+    };
+  }, [map, route]);
+  
+  return null;
+}
+
+// Map recenter component
+function MapController({ center }: { center?: [number, number] }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (center) {
+      map.flyTo([center[1], center[0]], 14);
+    }
+  }, [map, center]);
+  
+  return null;
+}
 
 interface MapViewProps {
   origin?: [number, number];
@@ -11,144 +78,81 @@ interface MapViewProps {
 }
 
 export function MapView({ origin, destination, route, onMapLoaded }: MapViewProps) {
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const [loaded, setLoaded] = useState(false);
-
+  // Ensure markers update when props change
+  const [key, setKey] = useState(0);
+  
   // Fetch route if origin and destination are provided
-  const { data: routeData } = useQuery({
+  const { data: routeData } = useQuery<Route>({
     queryKey: ['/api/directions', origin, destination],
     enabled: !!origin && !!destination,
   });
   
-  // Initialize map
+  // Update key when origin or destination changes to force re-render
   useEffect(() => {
-    if (mapContainer.current && !map.current) {
-      mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_KEY || "";
-      
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/streets-v11',
-        center: [77.2090, 28.6139], // Default center (New Delhi, India)
-        zoom: 12
-      });
-
-      map.current.on('load', () => {
-        setLoaded(true);
-        if (onMapLoaded) onMapLoaded();
-      });
+    setKey(prev => prev + 1);
+  }, [origin, destination]);
+  
+  // Call onMapLoaded when the map is ready
+  useEffect(() => {
+    if (onMapLoaded) {
+      onMapLoaded();
     }
   }, [onMapLoaded]);
-
-  // Add origin marker
-  useEffect(() => {
-    if (loaded && map.current && origin) {
-      // Remove existing marker if any
-      const originMarkerEl = document.getElementById('origin-marker');
-      if (originMarkerEl) originMarkerEl.remove();
-
-      // Create new marker element
-      const el = document.createElement('div');
-      el.className = 'marker';
-      el.id = 'origin-marker';
-      el.innerHTML = '<span class="material-icons text-[hsl(var(--suzuki-blue))] text-3xl drop-shadow-lg">my_location</span>';
-      
-      // Add marker to map
-      new mapboxgl.Marker(el)
-        .setLngLat([origin[0], origin[1]])
-        .addTo(map.current);
-
-      // Center map on origin
-      map.current.flyTo({
-        center: [origin[0], origin[1]],
-        zoom: 14,
-        essential: true
-      });
-    }
-  }, [loaded, origin]);
-
-  // Add destination marker
-  useEffect(() => {
-    if (loaded && map.current && destination) {
-      // Remove existing marker if any
-      const destMarkerEl = document.getElementById('destination-marker');
-      if (destMarkerEl) destMarkerEl.remove();
-
-      // Create new marker element
-      const el = document.createElement('div');
-      el.className = 'marker';
-      el.id = 'destination-marker';
-      el.innerHTML = '<span class="material-icons text-[hsl(var(--suzuki-red))] text-3xl drop-shadow-lg">place</span>';
-      
-      // Add marker to map
-      new mapboxgl.Marker(el)
-        .setLngLat([destination[0], destination[1]])
-        .addTo(map.current);
-
-      // If there's no origin, center map on destination
-      if (!origin) {
-        map.current.flyTo({
-          center: [destination[0], destination[1]],
-          zoom: 14,
-          essential: true
-        });
-      }
-    }
-  }, [loaded, destination, origin]);
-
-  // Draw route on map
-  useEffect(() => {
-    if (loaded && map.current && (route || routeData)) {
-      const routeToUse = route || routeData;
-      
-      if (routeToUse?.geometry) {
-        // Remove existing route layer if exists
-        if (map.current.getSource('route')) {
-          map.current.removeLayer('route');
-          map.current.removeSource('route');
-        }
-        
-        // Add route to map
-        map.current.addSource('route', {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            properties: {},
-            geometry: routeToUse.geometry
-          }
-        });
-        
-        map.current.addLayer({
-          id: 'route',
-          type: 'line',
-          source: 'route',
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round'
-          },
-          paint: {
-            'line-color': '#0C2E67', // Suzuki blue
-            'line-width': 8
-          }
-        });
-
-        // Fit map to route bounds
-        if (routeToUse.bounds) {
-          map.current.fitBounds(routeToUse.bounds, {
-            padding: 50,
-            duration: 1000
-          });
-        }
-      }
-    }
-  }, [loaded, route, routeData]);
-
+  
+  const originIcon = createCustomIcon('my_location', 'hsl(217, 84%, 22%)'); // Suzuki blue
+  const destinationIcon = createCustomIcon('place', 'hsl(0, 84%, 45%)'); // Suzuki red
+  
+  // Default center (New Delhi, India)
+  const defaultCenter: [number, number] = [28.6139, 77.2090];
+  
+  // Calculate center based on available points
+  const center = origin ? [origin[1], origin[0]] as [number, number] :
+               destination ? [destination[1], destination[0]] as [number, number] :
+               defaultCenter;
+  
   return (
     <div className="relative h-[calc(100vh-190px)] bg-gray-200">
-      <div ref={mapContainer} className="w-full h-full" />
+      <MapContainer
+        center={center}
+        zoom={12}
+        style={{ height: '100%', width: '100%' }}
+        key={key}
+      >
+        {/* Base map tiles */}
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        />
+        
+        {/* Controller to handle map view changes */}
+        {(origin || destination) && <MapController center={origin || destination} />}
+        
+        {/* Origin marker */}
+        {origin && (
+          <Marker 
+            position={[origin[1], origin[0]]} 
+            icon={originIcon as unknown as L.Icon}
+          >
+            <Popup>Current Location</Popup>
+          </Marker>
+        )}
+        
+        {/* Destination marker */}
+        {destination && (
+          <Marker 
+            position={[destination[1], destination[0]]} 
+            icon={destinationIcon as unknown as L.Icon}
+          >
+            <Popup>Destination</Popup>
+          </Marker>
+        )}
+        
+        {/* Route polyline */}
+        {(route || routeData) && <RouteLayer route={route || (routeData as Route | undefined)} />}
+      </MapContainer>
       
       {/* Map controls */}
-      <div className="absolute bottom-4 right-4 flex flex-col space-y-2">
+      <div className="absolute bottom-4 right-4 flex flex-col space-y-2 z-[1000]">
         <button className="bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-md">
           <span className="material-icons">my_location</span>
         </button>
