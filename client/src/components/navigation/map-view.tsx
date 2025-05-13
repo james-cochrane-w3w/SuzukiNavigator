@@ -70,6 +70,46 @@ function MapController({ center }: { center?: [number, number] }) {
   return null;
 }
 
+// Map zoom control component
+function MapZoomControls() {
+  const map = useMap();
+  
+  return (
+    <div className="absolute bottom-4 right-4 flex flex-col space-y-2 z-[1000]">
+      <button 
+        className="bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-md"
+        onClick={() => {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              map.flyTo(
+                [position.coords.latitude, position.coords.longitude],
+                14
+              );
+            },
+            () => {
+              console.error("Error getting current location");
+            }
+          );
+        }}
+      >
+        <span className="material-icons">my_location</span>
+      </button>
+      <button 
+        className="bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-md"
+        onClick={() => map.zoomIn()}
+      >
+        <span className="material-icons">add</span>
+      </button>
+      <button 
+        className="bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-md"
+        onClick={() => map.zoomOut()}
+      >
+        <span className="material-icons">remove</span>
+      </button>
+    </div>
+  );
+}
+
 interface MapViewProps {
   origin?: [number, number];
   destination?: [number, number];
@@ -153,13 +193,56 @@ export function MapView({ origin, destination, route, onMapLoaded }: MapViewProp
       
       {/* Map controls */}
       <div className="absolute bottom-4 right-4 flex flex-col space-y-2 z-[1000]">
-        <button className="bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-md">
+        <button 
+          className="bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-md"
+          onClick={() => {
+            const mapContainer = document.querySelector('.leaflet-container');
+            if (mapContainer) {
+              navigator.geolocation.getCurrentPosition(
+                (position) => {
+                  const leafletMap = (mapContainer as any)._leafletRef;
+                  if (leafletMap) {
+                    leafletMap.setView(
+                      [position.coords.latitude, position.coords.longitude],
+                      14
+                    );
+                  }
+                },
+                () => {
+                  console.error("Error getting current location");
+                }
+              );
+            }
+          }}
+        >
           <span className="material-icons">my_location</span>
         </button>
-        <button className="bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-md">
+        <button 
+          className="bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-md"
+          onClick={() => {
+            const mapContainer = document.querySelector('.leaflet-container');
+            if (mapContainer) {
+              const map = (mapContainer as any).leafletElement;
+              if (map) {
+                map.setZoom(map.getZoom() + 1);
+              }
+            }
+          }}
+        >
           <span className="material-icons">add</span>
         </button>
-        <button className="bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-md">
+        <button 
+          className="bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-md"
+          onClick={() => {
+            const mapContainer = document.querySelector('.leaflet-container');
+            if (mapContainer) {
+              const map = (mapContainer as any).leafletElement;
+              if (map) {
+                map.setZoom(map.getZoom() - 1);
+              }
+            }
+          }}
+        >
           <span className="material-icons">remove</span>
         </button>
       </div>
