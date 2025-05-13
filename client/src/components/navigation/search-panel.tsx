@@ -16,7 +16,19 @@ export function SearchPanel({ isVisible, onDestinationSelect }: SearchPanelProps
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { searchW3W } = useW3W();
+  
+  // Type guard for validating search results
+  const isValidSearchResult = (item: any): item is SearchResult => {
+    return item && 
+           typeof item.id === 'string' && 
+           typeof item.name === 'string' && 
+           typeof item.address === 'string' &&
+           Array.isArray(item.coordinates) && 
+           item.coordinates.length === 2 &&
+           typeof item.coordinates[0] === 'number' && 
+           typeof item.coordinates[1] === 'number' &&
+           (item.type === 'address' || item.type === 'poi' || item.type === 'w3w');
+  };
   
   // Fetch search results when query changes
   useEffect(() => {
@@ -37,49 +49,77 @@ export function SearchPanel({ isVisible, onDestinationSelect }: SearchPanelProps
         if (isW3WFormat) {
           // If it's a w3w format, prioritize w3w search
           const cleanQuery = searchQuery.startsWith("///") ? searchQuery.substring(3) : searchQuery;
-          const response = await axios.get(`/api/w3w/search?query=${encodeURIComponent(cleanQuery)}`);
           
-          if (response.data && Array.isArray(response.data)) {
-            results = response.data.map((item: any) => ({
-              id: item.words || `w3w-${Math.random().toString(36).substring(2, 9)}`,
-              name: item.words,
-              address: item.nearestPlace || "India",
-              coordinates: [item.coordinates.lng, item.coordinates.lat] as [number, number],
-              type: "w3w"
-            }));
+          try {
+            const response = await axios.get(`/api/w3w/search?query=${encodeURIComponent(cleanQuery)}`);
+            
+            if (response.data && Array.isArray(response.data)) {
+              const validResults = response.data
+                .filter(item => item && item.words && item.coordinates && item.coordinates.lng && item.coordinates.lat)
+                .map(item => ({
+                  id: item.words,
+                  name: item.words,
+                  address: item.nearestPlace || "India",
+                  coordinates: [item.coordinates.lng, item.coordinates.lat] as [number, number],
+                  type: "w3w" as const
+                }));
+              
+              results = validResults;
+            }
+          } catch (error) {
+            console.error("Error in w3w search:", error);
           }
         } else {
-          // Otherwise search for both regular places and w3w
-          // Search for regular places
-          const placesResponse = await axios.get(`/api/search?query=${encodeURIComponent(searchQuery)}`);
-          
-          if (placesResponse.data && Array.isArray(placesResponse.data)) {
-            // Ensure coordinates and type are properly typed
-            results = placesResponse.data.map(place => ({
-              ...place,
-              coordinates: place.coordinates as [number, number],
-              type: place.type as "address" | "poi" | "w3w"
-            }));
+          // Search for regular places first
+          try {
+            const placesResponse = await axios.get(`/api/search?query=${encodeURIComponent(searchQuery)}`);
+            
+            if (placesResponse.data && Array.isArray(placesResponse.data)) {
+              // Convert and validate place results
+              const placeResults = placesResponse.data
+                .filter(item => item && item.coordinates && Array.isArray(item.coordinates) && item.coordinates.length === 2)
+                .map(item => ({
+                  id: item.id || `place-${Math.random().toString(36).substring(2, 9)}`,
+                  name: item.name || "",
+                  address: item.address || "",
+                  coordinates: item.coordinates as [number, number],
+                  type: (item.type === "poi" || item.type === "address") ? item.type : "address" as "address" | "poi" | "w3w"
+                }));
+              
+              results = placeResults;
+            }
+          } catch (error) {
+            console.error("Error in place search:", error);
           }
           
-          // Also search for what3words
-          const w3wResponse = await axios.get(`/api/w3w/search?query=${encodeURIComponent(searchQuery)}`);
-          
-          if (w3wResponse.data && Array.isArray(w3wResponse.data)) {
-            const w3wResults = w3wResponse.data.map((item: any) => ({
-              id: item.words || `w3w-${Math.random().toString(36).substring(2, 9)}`,
-              name: item.words,
-              address: item.nearestPlace || "India",
-              coordinates: [item.coordinates.lng, item.coordinates.lat] as [number, number],
-              type: "w3w"
-            }));
-            
-            // Append w3w results to places
-            results = [...results, ...w3wResults];
+          // Also search for what3words if not too many results yet
+          if (results.length < 5) {
+            try {
+              const w3wResponse = await axios.get(`/api/w3w/search?query=${encodeURIComponent(searchQuery)}`);
+              
+              if (w3wResponse.data && Array.isArray(w3wResponse.data)) {
+                const w3wResults = w3wResponse.data
+                  .filter(item => item && item.words && item.coordinates && item.coordinates.lng && item.coordinates.lat)
+                  .map(item => ({
+                    id: item.words,
+                    name: item.words,
+                    address: item.nearestPlace || "India",
+                    coordinates: [item.coordinates.lng, item.coordinates.lat] as [number, number],
+                    type: "w3w" as const
+                  }));
+                
+                // Append w3w results to places
+                results = [...results, ...w3wResults];
+              }
+            } catch (error) {
+              console.error("Error in w3w search:", error);
+            }
           }
         }
         
-        setSearchResults(results);
+        // Final validation pass to ensure all results are valid
+        const validatedResults = results.filter(isValidSearchResult);
+        setSearchResults(validatedResults);
       } catch (error) {
         console.error("Error searching:", error);
         setSearchResults([]);
