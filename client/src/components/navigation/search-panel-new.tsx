@@ -62,10 +62,36 @@ export function SearchPanel({ isVisible, onDestinationSelect }: SearchPanelProps
            (item.type === 'address' || item.type === 'poi' || item.type === 'w3w');
   };
   
+  // Helper to determine if input looks like a potential w3w address
+  const isTypingW3WAddress = (query: string): boolean => {
+    // Count the number of dots in the query
+    const dotCount = (query.match(/\./g) || []).length;
+    
+    // Input is at least 8 chars (minimum for a.b.c) AND has at least one dot OR starts with ///
+    const isPartialW3W = (query.length >= 4 && dotCount >= 1) || query.startsWith('///');
+    
+    // If it has exactly 2 dots, make sure it follows the w3w pattern (word.word.word)
+    if (dotCount === 2) {
+      const parts = query.replace(/^\/+/, '').split('.');
+      return parts.length === 3 && 
+             parts[0].length > 0 && 
+             parts[1].length > 0;
+    }
+    
+    return isPartialW3W;
+  };
+
   // Fetch search results when query changes
   useEffect(() => {
     const fetchResults = async () => {
-      if (searchQuery.length < 3) {
+      // Clear results for empty queries
+      if (searchQuery.length === 0) {
+        setSearchResults([]);
+        return;
+      }
+      
+      // For non-w3w queries, require at least 3 characters
+      if (!isTypingW3WAddress(searchQuery) && searchQuery.length < 3) {
         setSearchResults([]);
         return;
       }
@@ -74,9 +100,8 @@ export function SearchPanel({ isVisible, onDestinationSelect }: SearchPanelProps
       try {
         console.log("Searching for:", searchQuery);
         
-        // Determine if it looks like a what3words address
-        const isW3WFormat = searchQuery.startsWith("///") || 
-                         /^[a-zA-Z]+\.[a-zA-Z]+\.[a-zA-Z]+$/.test(searchQuery);
+        // Check if this is a what3words query that should trigger w3w-specific search
+        const isW3WFormat = isTypingW3WAddress(searchQuery);
         
         let results: SearchResult[] = [];
         
