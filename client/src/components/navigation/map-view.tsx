@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
 import { Route } from "@/types";
 
@@ -189,63 +190,9 @@ export function MapView({ origin, destination, route, onMapLoaded }: MapViewProp
         
         {/* Route polyline */}
         {(route || routeData) && <RouteLayer route={route || (routeData as Route | undefined)} />}
+        {/* Map zoom controls inside MapContainer */}
+        <MapZoomControls />
       </MapContainer>
-      
-      {/* Map controls */}
-      <div className="absolute bottom-4 right-4 flex flex-col space-y-2 z-[1000]">
-        <button 
-          className="bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-md"
-          onClick={() => {
-            const mapContainer = document.querySelector('.leaflet-container');
-            if (mapContainer) {
-              navigator.geolocation.getCurrentPosition(
-                (position) => {
-                  const leafletMap = (mapContainer as any)._leafletRef;
-                  if (leafletMap) {
-                    leafletMap.setView(
-                      [position.coords.latitude, position.coords.longitude],
-                      14
-                    );
-                  }
-                },
-                () => {
-                  console.error("Error getting current location");
-                }
-              );
-            }
-          }}
-        >
-          <span className="material-icons">my_location</span>
-        </button>
-        <button 
-          className="bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-md"
-          onClick={() => {
-            const mapContainer = document.querySelector('.leaflet-container');
-            if (mapContainer) {
-              const map = (mapContainer as any).leafletElement;
-              if (map) {
-                map.setZoom(map.getZoom() + 1);
-              }
-            }
-          }}
-        >
-          <span className="material-icons">add</span>
-        </button>
-        <button 
-          className="bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-md"
-          onClick={() => {
-            const mapContainer = document.querySelector('.leaflet-container');
-            if (mapContainer) {
-              const map = (mapContainer as any).leafletElement;
-              if (map) {
-                map.setZoom(map.getZoom() - 1);
-              }
-            }
-          }}
-        >
-          <span className="material-icons">remove</span>
-        </button>
-      </div>
     </div>
   );
 }
