@@ -18,7 +18,7 @@ export async function searchW3W(query: string): Promise<any[]> {
     }
 
     // If the query is a valid 3 word address format
-    if (query.match(/^[a-zA-Z]+\.[a-zA-Z]+\.[a-zA-Z]+$/) || query.startsWith("///")) {
+    if (query.match(/^[a-zA-Z]+\.[a-zA-Z]+\.[a-zA-Z]+$/) || query.match(/^[a-zA-Z]+\.[a-zA-Z]+\.[a-zA-Z]+$/)) {
       const words = query.startsWith("///") ? query.substring(3) : query;
       
       // Get coordinates for the 3 word address
@@ -44,7 +44,34 @@ export async function searchW3W(query: string): Promise<any[]> {
       }
     });
 
-    return response.data.suggestions || [];
+    if (response.data && response.data.suggestions) {
+      // For each suggestion, get more details
+      const suggestions = response.data.suggestions;
+      const detailedResults = await Promise.all(
+        suggestions.map(async (suggestion: any) => {
+          try {
+            const detailResponse = await axios.get(`${W3W_API_URL}/convert-to-coordinates`, {
+              params: {
+                words: suggestion.words,
+                key: W3W_API_KEY
+              }
+            });
+            
+            return {
+              ...suggestion,
+              ...detailResponse.data
+            };
+          } catch (error) {
+            console.error(`Error getting details for ${suggestion.words}:`, error);
+            return suggestion;
+          }
+        })
+      );
+      
+      return detailedResults;
+    }
+
+    return [];
   } catch (error) {
     console.error("Error searching what3words:", error);
     return [];

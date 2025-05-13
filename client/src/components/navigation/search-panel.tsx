@@ -3,6 +3,7 @@ import { useW3W } from "@/hooks/use-w3w";
 import { W3WBadge } from "../ui/w3w-badge";
 import { SearchResult } from "@/types";
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 
 interface SearchPanelProps {
   isVisible: boolean;
@@ -12,13 +13,90 @@ interface SearchPanelProps {
 export function SearchPanel({ isVisible, onDestinationSelect }: SearchPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | "recent" | "favorites">("all");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { searchW3W } = useW3W();
+  
+  // Fetch search results when query changes
+  useEffect(() => {
+    const fetchResults = async () => {
+      if (searchQuery.length < 3) {
+        setSearchResults([]);
+        return;
+      }
 
-  const { data: searchResults = [], isLoading } = useQuery({
-    queryKey: ['/api/search', searchQuery],
-    enabled: searchQuery.length > 2,
-  });
+      setIsSearching(true);
+      try {
+        // Determine if it looks like a what3words address
+        const isW3WFormat = searchQuery.startsWith("///") || 
+                           /^[a-zA-Z]+\.[a-zA-Z]+\.[a-zA-Z]+$/.test(searchQuery);
+        
+        let results: SearchResult[] = [];
+        
+        if (isW3WFormat) {
+          // If it's a w3w format, prioritize w3w search
+          const cleanQuery = searchQuery.startsWith("///") ? searchQuery.substring(3) : searchQuery;
+          const response = await axios.get(`/api/w3w/search?query=${encodeURIComponent(cleanQuery)}`);
+          
+          if (response.data && Array.isArray(response.data)) {
+            results = response.data.map((item: any) => ({
+              id: item.words || `w3w-${Math.random().toString(36).substring(2, 9)}`,
+              name: item.words,
+              address: item.nearestPlace || "India",
+              coordinates: [item.coordinates.lng, item.coordinates.lat] as [number, number],
+              type: "w3w"
+            }));
+          }
+        } else {
+          // Otherwise search for both regular places and w3w
+          // Search for regular places
+          const placesResponse = await axios.get(`/api/search?query=${encodeURIComponent(searchQuery)}`);
+          
+          if (placesResponse.data && Array.isArray(placesResponse.data)) {
+            // Ensure coordinates and type are properly typed
+            results = placesResponse.data.map(place => ({
+              ...place,
+              coordinates: place.coordinates as [number, number],
+              type: place.type as "address" | "poi" | "w3w"
+            }));
+          }
+          
+          // Also search for what3words
+          const w3wResponse = await axios.get(`/api/w3w/search?query=${encodeURIComponent(searchQuery)}`);
+          
+          if (w3wResponse.data && Array.isArray(w3wResponse.data)) {
+            const w3wResults = w3wResponse.data.map((item: any) => ({
+              id: item.words || `w3w-${Math.random().toString(36).substring(2, 9)}`,
+              name: item.words,
+              address: item.nearestPlace || "India",
+              coordinates: [item.coordinates.lng, item.coordinates.lat] as [number, number],
+              type: "w3w"
+            }));
+            
+            // Append w3w results to places
+            results = [...results, ...w3wResults];
+          }
+        }
+        
+        setSearchResults(results);
+      } catch (error) {
+        console.error("Error searching:", error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    // Debounce the search
+    const timer = setTimeout(() => {
+      if (searchQuery.length >= 3) {
+        fetchResults();
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (isVisible && inputRef.current) {
@@ -35,8 +113,30 @@ export function SearchPanel({ isVisible, onDestinationSelect }: SearchPanelProps
 
   const handleResultClick = (result: SearchResult) => {
     onDestinationSelect(result);
-    setSearchQuery(result.name);
+    
+    // For w3w addresses, show with the /// prefix in the search bar
+    if (result.type === "w3w" && !result.name.startsWith("///")) {
+      setSearchQuery(`///${result.name}`);
+    } else {
+      setSearchQuery(result.name);
+    }
   };
+
+  // Filter results based on active tab
+  const filteredResults = searchResults.filter(result => {
+    if (activeTab === "all") return true;
+    if (activeTab === "recent") {
+      // In a real app, this would check a "recent" flag or timestamp
+      // For now, just show some results
+      return result.type === "address";
+    }
+    if (activeTab === "favorites") {
+      // In a real app, this would check a "favorite" flag
+      // For now, just show some different results
+      return result.type === "poi";
+    }
+    return true;
+  });
 
   return (
     <div className={`absolute inset-x-0 top-16 z-10 bg-white ${isVisible ? "" : "hidden"}`}>
@@ -52,35 +152,35 @@ export function SearchPanel({ isVisible, onDestinationSelect }: SearchPanelProps
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search for destination, POI or ///what3words"
-            className="pl-10 pr-10 py-2 w-full border border-[hsl(var(--suzuki-light))] rounded-lg focus:outline-none focus:ring-2 focus:ring-[hsl(var(--suzuki-blue))] text-[hsl(var(--suzuki-dark))]"
+            className="pl-10 pr-10 py-2 w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[hsl(var(--suzuki-blue))] text-gray-800"
           />
           {searchQuery && (
             <span 
               className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer" 
               onClick={handleClearSearch}
             >
-              <span className="material-icons text-[hsl(var(--suzuki-gray))]">close</span>
+              <span className="material-icons text-gray-400">close</span>
             </span>
           )}
         </div>
       </div>
 
       {/* Search Filter Tabs */}
-      <div className="flex border-b border-[hsl(var(--suzuki-light))]">
+      <div className="flex border-b border-gray-200">
         <button 
-          className={`flex-1 py-2 text-sm font-medium ${activeTab === "all" ? "text-[hsl(var(--suzuki-blue))] border-b-2 border-[hsl(var(--suzuki-blue))]" : "text-[hsl(var(--suzuki-gray))]"}`}
+          className={`flex-1 py-2 text-sm font-medium ${activeTab === "all" ? "text-[hsl(var(--suzuki-blue))] border-b-2 border-[hsl(var(--suzuki-blue))]" : "text-gray-500"}`}
           onClick={() => setActiveTab("all")}
         >
           All
         </button>
         <button 
-          className={`flex-1 py-2 text-sm font-medium ${activeTab === "recent" ? "text-[hsl(var(--suzuki-blue))] border-b-2 border-[hsl(var(--suzuki-blue))]" : "text-[hsl(var(--suzuki-gray))]"}`}
+          className={`flex-1 py-2 text-sm font-medium ${activeTab === "recent" ? "text-[hsl(var(--suzuki-blue))] border-b-2 border-[hsl(var(--suzuki-blue))]" : "text-gray-500"}`}
           onClick={() => setActiveTab("recent")}
         >
           Recent
         </button>
         <button 
-          className={`flex-1 py-2 text-sm font-medium ${activeTab === "favorites" ? "text-[hsl(var(--suzuki-blue))] border-b-2 border-[hsl(var(--suzuki-blue))]" : "text-[hsl(var(--suzuki-gray))]"}`}
+          className={`flex-1 py-2 text-sm font-medium ${activeTab === "favorites" ? "text-[hsl(var(--suzuki-blue))] border-b-2 border-[hsl(var(--suzuki-blue))]" : "text-gray-500"}`}
           onClick={() => setActiveTab("favorites")}
         >
           Favorites
@@ -88,14 +188,14 @@ export function SearchPanel({ isVisible, onDestinationSelect }: SearchPanelProps
       </div>
 
       {/* Search Suggestions */}
-      <div className="max-h-96 overflow-y-auto divide-y divide-[hsl(var(--suzuki-light))]">
-        {isLoading ? (
-          <div className="p-4 text-center text-[hsl(var(--suzuki-dark-gray))]">Searching...</div>
-        ) : searchResults.length > 0 ? (
-          searchResults.map((result, index) => (
+      <div className="max-h-96 overflow-y-auto divide-y divide-gray-100">
+        {isSearching ? (
+          <div className="p-4 text-center text-gray-500">Searching...</div>
+        ) : filteredResults.length > 0 ? (
+          filteredResults.map((result, index) => (
             <div 
               key={`${result.id}-${index}`}
-              className="search-suggestion px-4 py-3 flex items-start gap-3 cursor-pointer hover:bg-[hsl(var(--suzuki-light))]"
+              className="search-suggestion px-4 py-3 flex items-start gap-3 cursor-pointer hover:bg-gray-50"
               onClick={() => handleResultClick(result)}
             >
               {result.type === "w3w" ? (
@@ -106,15 +206,15 @@ export function SearchPanel({ isVisible, onDestinationSelect }: SearchPanelProps
                 <span className="material-icons text-[hsl(var(--suzuki-blue))] mt-1">location_on</span>
               )}
               <div>
-                <h3 className={`font-medium text-[hsl(var(--suzuki-dark))] ${result.type === "w3w" ? "what3words-address" : ""}`}>
-                  {result.name}
+                <h3 className={`font-medium text-gray-900 ${result.type === "w3w" ? "what3words-address" : ""}`}>
+                  {result.type === "w3w" && !result.name.startsWith("///") ? `${result.name}` : result.name}
                 </h3>
-                <p className="text-sm text-[hsl(var(--suzuki-gray))]">{result.address}</p>
+                <p className="text-sm text-gray-500">{result.address}</p>
               </div>
             </div>
           ))
         ) : searchQuery.length > 2 ? (
-          <div className="p-4 text-center text-[hsl(var(--suzuki-dark-gray))]">No results found</div>
+          <div className="p-4 text-center text-gray-500">No results found</div>
         ) : null}
       </div>
     </div>
