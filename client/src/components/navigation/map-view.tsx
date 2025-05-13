@@ -5,6 +5,9 @@ import "leaflet/dist/leaflet.css";
 import { useQuery } from "@tanstack/react-query";
 import { Route } from "@/types";
 
+// Import Leaflet zoom control CSS
+import "leaflet/dist/leaflet.css";
+
 // Define custom icon components for markers
 const createCustomIcon = (iconName: string, color: string): L.DivIcon => {
   return L.divIcon({
@@ -200,6 +203,7 @@ export function MapView({ origin, destination, route, onMapLoaded }: MapViewProp
         zoom={12}
         style={{ height: '100%', width: '100%' }}
         key={key}
+        zoomControl={true}
       >
         {/* Base map tiles */}
         <TileLayer
@@ -232,8 +236,7 @@ export function MapView({ origin, destination, route, onMapLoaded }: MapViewProp
         
         {/* Route polyline */}
         {(route || routeData) && <RouteLayer route={route || (routeData as Route | undefined)} />}
-        {/* Map zoom controls inside MapContainer */}
-        <MapZoomControls />
+        {/* Using Leaflet's built-in zoom control */}
       </MapContainer>
     </div>
   );
