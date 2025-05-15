@@ -115,6 +115,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get Google Maps API Key
+  app.get("/api/config/maps", (req, res) => {
+    res.json({
+      googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || ""
+    });
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

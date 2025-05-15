@@ -65,14 +65,22 @@ export async function searchW3W(query: string): Promise<any[]> {
       // Clean the query (remove ///)
       const cleanQuery = query.startsWith("///") ? query.substring(3) : query;
       
-      // Only provide suggestions once we're typing the third word
-      // This matches the exact format word.word.w where w is at least one character
-      const w3wPattern = /^[a-zA-Z]+\.[a-zA-Z]+\.[a-zA-Z]+/;
-      const isTypingThirdWord = /^[a-zA-Z]+\.[a-zA-Z]+\./.test(cleanQuery);
+      // Only provide suggestions once we're typing the third word as per documentation
+      // This checks if we have a pattern like "word.word.w" where w is at least one character
+      const isThreeWordFormat = /^[a-zA-Z]+\.[a-zA-Z]+\.[a-zA-Z]+/.test(cleanQuery);
+      const isTypingThirdWord = /^[a-zA-Z]+\.[a-zA-Z]+\.[a-zA-Z]/.test(cleanQuery);
       
-      // If we're not yet typing the third word, don't show suggestions
-      if (!isTypingThirdWord && !w3wPattern.test(cleanQuery)) {
-        console.log(`Not showing w3w suggestions for "${query}" - waiting for third word`);
+      // Return immediately if it's not in the right format
+      if (!isTypingThirdWord && !isThreeWordFormat) {
+        console.log(`Not showing w3w suggestions for "${query}" - waiting for third word to begin`);
+        return [];
+      }
+      
+      // Check specifically for pattern word.word.w format - we need at least the first letter of third word
+      // This follows the what3words API documentation requirement for autosuggest
+      const hasThirdWordStarted = cleanQuery.split('.').length === 3 && cleanQuery.split('.')[2].length > 0;
+      if (!hasThirdWordStarted) {
+        console.log(`Not showing w3w suggestions for "${query}" - third word hasn't started yet`);
         return [];
       }
       
@@ -111,17 +119,28 @@ export async function searchW3W(query: string): Promise<any[]> {
         return filteredMockData.slice(0, 3);
       } else if (isTypingThirdWord) {
         // Only return suggestions if we're typing the third word
-        console.log(`No exact matches for "${query}", returning sample suggestions`);
-        return mockW3WAddresses.slice(0, 2);
+        // In a real app, this would be a call to the what3words autosuggest API with:
+        // - clip-to-country=IN parameter to limit results to India
+        console.log(`No exact matches for "${query}", returning sample suggestions limited to India`);
+        return mockW3WAddresses.slice(0, 2); // All our mock data is already for India locations
       } else {
         return [];
       }
     }
     
     // We're not going to try the real API for now since we're getting 402 errors
-    // Provide some mock suggestions that could be related
+    // If this was a real implementation with a working API key, we would use:
+    // const response = await axios.get(`${W3W_API_URL}/autosuggest`, {
+    //   params: {
+    //     input: query,
+    //     clip-to-country: "IN", // Limit to India only
+    //     key: W3W_API_KEY
+    //   }
+    // });
+    
+    // For now, provide some India-only mock suggestions
     const sampleResults = mockW3WAddresses.slice(0, 2);
-    console.log(`Returning sample w3w addresses for query "${query}"`);
+    console.log(`Returning sample w3w addresses for query "${query}" (India only)`);
     return sampleResults;
     
     // If real API call fails or has no results, use mock data (filtered by the query)

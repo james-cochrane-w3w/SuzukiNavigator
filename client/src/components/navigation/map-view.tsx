@@ -217,13 +217,20 @@ export function MapView({ origin, destination, route, onMapLoaded }: MapViewProp
     }
   }, [route, routeData]);
 
+  // Fetch Google Maps API key
+  const { data: mapsConfig } = useQuery({
+    queryKey: ['/api/config/maps'],
+  });
+
   // Initialize the Google Maps script
   useEffect(() => {
+    if (!mapsConfig?.googleMapsApiKey) return;
+
     // Only load the Google Maps script once
     if (!window.google || !window.google.maps) {
       // Create script element
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.GOOGLE_MAPS_API_KEY}&libraries=places`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsConfig.googleMapsApiKey}&libraries=places`;
       script.async = true;
       script.defer = true;
       
@@ -235,13 +242,15 @@ export function MapView({ origin, destination, route, onMapLoaded }: MapViewProp
       
       // Clean up
       return () => {
-        document.head.removeChild(script);
+        if (document.head.contains(script)) {
+          document.head.removeChild(script);
+        }
       };
     } else {
       // Google Maps already loaded, initialize map directly
       initMap();
     }
-  }, [initMap]);
+  }, [initMap, mapsConfig]);
 
   // Update markers and route when data changes
   useEffect(() => {
