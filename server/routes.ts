@@ -129,10 +129,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get Google Maps API Key
+  // Get Maps API Keys
   app.get("/api/config/maps", (req, res) => {
     res.json({
-      googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || ""
+      googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || "",
+      w3wApiKey: process.env.W3W_API_KEY || ""
     });
   });
 

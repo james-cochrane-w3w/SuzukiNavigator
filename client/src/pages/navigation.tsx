@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TopNavigationBar } from "@/components/navigation/top-navigation-bar";
 import { BottomNavigationBar } from "@/components/navigation/bottom-navigation-bar";
-import { W3WMap } from "@/components/navigation/w3w-map-new";
+import { W3WMap } from "@/components/navigation/w3w-map-simple";
 import { DirectionsBottomSheet } from "@/components/navigation/directions-bottom-sheet";
 import { TurnByTurnView } from "@/components/navigation/turn-by-turn-view";
 import { SearchResult, Route } from "@/types";
@@ -100,9 +100,7 @@ export default function Navigation() {
       <div className="w-full h-[calc(100vh-120px)]">
         <W3WMap 
           initialWords={destination?.type === 'w3w' ? destination.name : undefined}
-          onWordsChanged={(words) => console.log('Words changed:', words)}
           onDestinationSelect={handleDestinationSelect}
-          showSearchBox={showSearchPanel}
         />
       </div>
 
