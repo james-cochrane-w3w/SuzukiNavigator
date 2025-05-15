@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TopNavigationBar } from "@/components/navigation/top-navigation-bar";
 import { BottomNavigationBar } from "@/components/navigation/bottom-navigation-bar";
-import { W3WMap } from "@/components/navigation/w3w-map-simple";
+import W3WMap from "@/components/navigation/Map";
 import { DirectionsBottomSheet } from "@/components/navigation/directions-bottom-sheet";
 import { TurnByTurnView } from "@/components/navigation/turn-by-turn-view";
 import { SearchResult, Route } from "@/types";

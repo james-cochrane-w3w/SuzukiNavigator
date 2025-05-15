@@ -51,7 +51,20 @@ export function W3WMap({ initialWords = "filled.count.soap", onDestinationSelect
   
   // Initialize the what3words map once we have the API keys
   useEffect(() => {
-    if (!containerRef.current || !apiKeys || !apiKeys.w3wApiKey || !apiKeys.googleMapsApiKey) return;
+    if (!containerRef.current || !apiKeys) {
+      console.log("Waiting for API keys or container...");
+      return;
+    }
+
+    if (!apiKeys.w3wApiKey || !apiKeys.googleMapsApiKey) {
+      console.log("Missing API keys:", { 
+        w3wApiKey: apiKeys.w3wApiKey ? "Present" : "Missing", 
+        googleMapsApiKey: apiKeys.googleMapsApiKey ? "Present" : "Missing" 
+      });
+      return;
+    }
+    
+    console.log("Creating what3words map component with keys");
     
     // Clear any existing content
     containerRef.current.innerHTML = '';
@@ -64,6 +77,11 @@ export function W3WMap({ initialWords = "filled.count.soap", onDestinationSelect
     mapElement.setAttribute('language', 'en');
     mapElement.setAttribute('clip_to_country', 'IN');
     
+    // Add map element attributes for display
+    mapElement.setAttribute('current_location_control_position', 'bottom-right');
+    mapElement.setAttribute('fullscreen_control', 'false');
+    mapElement.setAttribute('disable_default_ui', 'false');
+    
     // Create and add the map canvas
     const mapCanvas = document.createElement('div');
     mapCanvas.setAttribute('slot', 'map');
@@ -74,8 +92,19 @@ export function W3WMap({ initialWords = "filled.count.soap", onDestinationSelect
     // Add the map element to our container
     containerRef.current.appendChild(mapElement);
     
+    // Add error handling for the map component
+    mapElement.addEventListener('error', (e: any) => {
+      console.error("what3words map error:", e.detail);
+    });
+    
+    // Add event listener for when map is ready
+    mapElement.addEventListener('ready', (e: any) => {
+      console.log("what3words map is ready!");
+    });
+    
     // Add event listener for selected addresses
     const handleSelected = (e: any) => {
+      console.log("Map selection event:", e.detail);
       if (onDestinationSelect && e.detail && e.detail.words) {
         const words = e.detail.words;
         const coordinates = e.detail.coordinates || { lat: 0, lng: 0 };
@@ -84,7 +113,7 @@ export function W3WMap({ initialWords = "filled.count.soap", onDestinationSelect
         const result: SearchResult = {
           id: words,
           name: words,
-          address: "what3words address",
+          address: e.detail.nearestPlace || "what3words address",
           coordinates: [coordinates.lng, coordinates.lat],
           type: "w3w"
         };
