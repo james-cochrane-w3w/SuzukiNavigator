@@ -2,7 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { searchW3W, convertW3WToCoordinates } from "./api/w3w";
-import { getDirections, searchPlace } from "./api/mapbox";
+import { getDirections as getMapboxDirections, searchPlace as searchMapboxPlace } from "./api/mapbox";
+import { getDirections as getGoogleDirections, searchPlace as searchGooglePlace } from "./api/google-maps";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // W3W API routes
@@ -52,8 +53,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const w3wResults = await searchW3W(w3wQuery);
         results = [...w3wResults];
       } else {
-        // Otherwise search for places using Mapbox
-        const placeResults = await searchPlace(query);
+        // First search using Google Maps (preferred)
+        let placeResults: any[] = [];
+        
+        try {
+          placeResults = await searchGooglePlace(query);
+          console.log(`Found ${placeResults.length} Google results for "${query}"`);
+        } catch (error) {
+          console.error("Error with Google Places:", error);
+          
+          // Fallback to Mapbox if Google fails
+          placeResults = await searchMapboxPlace(query);
+          console.log(`Fallback: Found ${placeResults.length} Mapbox results for "${query}"`);
+        }
         
         // Also check w3w for any matching results
         const w3wResults = await searchW3W(query);
@@ -82,7 +94,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [originLng, originLat] = origin.split(",").map(Number);
       const [destLng, destLat] = destination.split(",").map(Number);
 
-      const route = await getDirections([originLng, originLat], [destLng, destLat]);
+      // Try Google Maps directions first (preferred)
+      let route = null;
+      
+      try {
+        route = await getGoogleDirections([originLng, originLat], [destLng, destLat]);
+        console.log("Got directions from Google Maps API");
+      } catch (error) {
+        console.error("Error with Google Directions:", error);
+        
+        // Fallback to Mapbox if Google fails
+        route = await getMapboxDirections([originLng, originLat], [destLng, destLat]);
+        console.log("Fallback: Got directions from Mapbox API");
+      }
+      
       res.json(route);
     } catch (error) {
       console.error("Error getting directions:", error);
