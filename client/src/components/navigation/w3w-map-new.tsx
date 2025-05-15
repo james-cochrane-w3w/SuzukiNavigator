@@ -35,8 +35,8 @@ export function W3WMap({
   const [isW3WFormat, setIsW3WFormat] = useState(false);
   
   // Get the API keys from environment variables
-  const W3W_API_KEY = import.meta.env.VITE_W3W_API_KEY as string;
-  const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
+  const W3W_API_KEY = import.meta.env.W3W_API_KEY as string;
+  const GOOGLE_MAPS_API_KEY = import.meta.env.GOOGLE_MAPS_API_KEY as string;
   
   // Element refs
   const mapContainerRef = useRef<HTMLDivElement>(null);
