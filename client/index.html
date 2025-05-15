@@ -16,6 +16,19 @@
             src="https://cdn.what3words.com/javascript-components@5.0.0/dist/what3words/what3words.esm.js"></script>
     <script nomodule
             src="https://cdn.what3words.com/javascript-components@5.0.0/dist/what3words/what3words.js"></script>
+    
+    <!-- Reset global styles to prevent scrollbars with map -->
+    <style>
+      html, body, #root {
+        height: 100%;   /* let the React root fill the viewport */
+        margin: 0;      /* remove default body margin that causes a scrollbar */
+      }
+      
+      body {
+        overflow: hidden;                /* prevent the map from scrolling the page */
+        -webkit-overflow-scrolling: touch;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

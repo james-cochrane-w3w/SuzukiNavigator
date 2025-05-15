@@ -24,7 +24,7 @@ declare global {
         clip_to_circle?: string;
         clip_to_polygon?: string;
         language?: string;
-        return_coordinates?: boolean;
+        return_coordinates?: boolean | string;
       }, HTMLElement>;
     }
   }

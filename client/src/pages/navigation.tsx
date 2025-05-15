@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { TopNavigationBar } from "@/components/navigation/top-navigation-bar";
 import { BottomNavigationBar } from "@/components/navigation/bottom-navigation-bar";
 import { CombinedSearchPanel } from "@/components/navigation/combined-search-panel"; 
-import { MapView } from "@/components/navigation/map-view";
+import { W3WMap } from "@/components/navigation/w3w-map";
 import { DirectionsBottomSheet } from "@/components/navigation/directions-bottom-sheet";
 import { TurnByTurnView } from "@/components/navigation/turn-by-turn-view";
 import { SearchResult, Route } from "@/types";
@@ -96,19 +96,22 @@ export default function Navigation() {
         title="Navigation" 
         onBackClick={handleBackClick}
       />
+      
+      {/* Combined Search Panel - Now at top */}
+      <div className="absolute top-[60px] left-0 right-0 z-10">
+        <CombinedSearchPanel 
+          isVisible={showSearchPanel}
+          onDestinationSelect={handleDestinationSelect}
+        />
+      </div>
 
-      {/* Map View */}
-      <MapView 
-        origin={currentLocation || undefined}
-        destination={destination?.coordinates}
-        route={route}
-      />
-
-      {/* Combined Search Panel */}
-      <CombinedSearchPanel 
-        isVisible={showSearchPanel}
-        onDestinationSelect={handleDestinationSelect}
-      />
+      {/* W3W Map */}
+      <div className="w-full h-[calc(100vh-120px)]">
+        <W3WMap 
+          initialWords={destination?.type === 'w3w' ? destination.name : undefined}
+          onWordsChanged={(words) => console.log('Words changed:', words)}
+        />
+      </div>
 
       {/* Directions Bottom Sheet */}
       <DirectionsBottomSheet
