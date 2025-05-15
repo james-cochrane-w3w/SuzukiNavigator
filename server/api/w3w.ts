@@ -65,6 +65,17 @@ export async function searchW3W(query: string): Promise<any[]> {
       // Clean the query (remove ///)
       const cleanQuery = query.startsWith("///") ? query.substring(3) : query;
       
+      // Only provide suggestions once we're typing the third word
+      // This matches the exact format word.word.w where w is at least one character
+      const w3wPattern = /^[a-zA-Z]+\.[a-zA-Z]+\.[a-zA-Z]+/;
+      const isTypingThirdWord = /^[a-zA-Z]+\.[a-zA-Z]+\./.test(cleanQuery);
+      
+      // If we're not yet typing the third word, don't show suggestions
+      if (!isTypingThirdWord && !w3wPattern.test(cleanQuery)) {
+        console.log(`Not showing w3w suggestions for "${query}" - waiting for third word`);
+        return [];
+      }
+      
       // Filter mock data based on matches
       const filteredMockData = mockW3WAddresses.filter(address => {
         // Exact match
@@ -98,10 +109,12 @@ export async function searchW3W(query: string): Promise<any[]> {
       if (filteredMockData.length > 0) {
         console.log(`Using filtered mock w3w data for "${query}"`);
         return filteredMockData.slice(0, 3);
-      } else {
-        // If no matches, return a sample of the mock data as suggestions
+      } else if (isTypingThirdWord) {
+        // Only return suggestions if we're typing the third word
         console.log(`No exact matches for "${query}", returning sample suggestions`);
         return mockW3WAddresses.slice(0, 2);
+      } else {
+        return [];
       }
     }
     

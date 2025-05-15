@@ -1,6 +1,7 @@
 import React from "react";
 import { BottomNavigationBar } from "@/components/navigation/bottom-navigation-bar";
 import { Link } from "wouter";
+import suzukiMotorcycleImage from "../assets/suzuki-motorcycle.png";
 
 export default function Home() {
   return (
@@ -25,8 +26,12 @@ export default function Home() {
       <div className="p-4">
         <div className="bg-white rounded-lg shadow-md p-4 mb-4">
           <h2 className="text-lg font-medium mb-2">My Motorcycle</h2>
-          <div className="aspect-[16/9] bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
-            <span className="material-icons text-6xl text-[hsl(var(--suzuki-blue))]">motorcycle</span>
+          <div className="aspect-[16/9] bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+            <img 
+              src={suzukiMotorcycleImage} 
+              alt="Suzuki V-Strom 650 DL650" 
+              className="object-contain h-full w-full"
+            />
           </div>
           <div className="flex justify-between">
             <div>
