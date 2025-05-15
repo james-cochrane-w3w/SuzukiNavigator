@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TopNavigationBar } from "@/components/navigation/top-navigation-bar";
 import { BottomNavigationBar } from "@/components/navigation/bottom-navigation-bar";
-import { SearchPanel } from "@/components/navigation/search-panel-new";
+import { CombinedSearchPanel } from "@/components/navigation/combined-search-panel"; 
 import { MapView } from "@/components/navigation/map-view";
 import { DirectionsBottomSheet } from "@/components/navigation/directions-bottom-sheet";
 import { TurnByTurnView } from "@/components/navigation/turn-by-turn-view";
@@ -104,8 +104,8 @@ export default function Navigation() {
         route={route}
       />
 
-      {/* Search Panel */}
-      <SearchPanel 
+      {/* Combined Search Panel */}
+      <CombinedSearchPanel 
         isVisible={showSearchPanel}
         onDestinationSelect={handleDestinationSelect}
       />
