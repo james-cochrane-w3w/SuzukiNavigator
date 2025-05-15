@@ -47,31 +47,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let results = [];
 
-      // If query looks like a what3words address, prioritize w3w search
-      if (query.startsWith("///") || query.match(/^[a-zA-Z]+\.[a-zA-Z]+\.[a-zA-Z]+$/)) {
+      // Check if the query looks like a what3words address
+      const isW3WFormat = query.startsWith("///") || query.includes(".");
+      
+      // If the query is in what3words format, prioritize w3w search
+      if (isW3WFormat) {
         const w3wQuery = query.startsWith("///") ? query.substring(3) : query;
         const w3wResults = await searchW3W(w3wQuery);
-        results = [...w3wResults];
-      } else {
-        // First search using Google Maps (preferred)
-        let placeResults: any[] = [];
         
-        try {
-          placeResults = await searchGooglePlace(query);
-          console.log(`Found ${placeResults.length} Google results for "${query}"`);
-        } catch (error) {
-          console.error("Error with Google Places:", error);
-          
-          // Fallback to Mapbox if Google fails
-          placeResults = await searchMapboxPlace(query);
-          console.log(`Fallback: Found ${placeResults.length} Mapbox results for "${query}"`);
+        // If we got w3w results, return them exclusively
+        if (w3wResults.length > 0) {
+          results = [...w3wResults];
+          return res.json(results.slice(0, 5)); // Limit to 5 results
         }
+      }
+      
+      // For all other searches, use Google Places
+      try {
+        const placeResults = await searchGooglePlace(query);
+        console.log(`Found ${placeResults.length} Google results for "${query}"`);
         
-        // Also check w3w for any matching results
-        const w3wResults = await searchW3W(query);
+        // Add Google results
+        results = [...placeResults];
         
-        // Combine results with place results first, then w3w
-        results = [...placeResults, ...w3wResults];
+        // If it's potentially a w3w format but still in progress (e.g., only contains one dot),
+        // and we didn't get any w3w results above, also check w3w as a secondary search
+        if (isW3WFormat) {
+          const w3wQuery = query.startsWith("///") ? query.substring(3) : query;
+          const w3wResults = await searchW3W(w3wQuery);
+          
+          // Append any w3w results after place results
+          results = [...results, ...w3wResults];
+        }
+      } catch (error) {
+        console.error("Error with Google Places:", error);
+        
+        // Fallback to Mapbox if Google fails
+        const placeResults = await searchMapboxPlace(query);
+        console.log(`Fallback: Found ${placeResults.length} Mapbox results for "${query}"`);
+        results = [...placeResults];
       }
 
       res.json(results.slice(0, 5)); // Limit to 5 results

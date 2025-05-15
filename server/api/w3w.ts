@@ -10,42 +10,83 @@ let lastApiCallTime = 0;
 const API_CALL_LIMIT_MS = 500; // Minimum time between API calls
 
 // Mock data for demo purposes since free keys have limited access
-// These are actual what3words addresses in India
+// These are actual what3words addresses in India (expanded dataset)
 const mockW3WAddresses = [
+  // New Delhi area
   {
     words: "chilly.bunches.grumble",
-    coordinates: { lat: 28.637248, lng: 77.220724 }, // New Delhi
+    coordinates: { lat: 28.637248, lng: 77.220724 },
     language: "en",
     map: "https://w3w.co/chilly.bunches.grumble",
     nearestPlace: "New Delhi, India"
   },
   {
+    words: "outboard.panic.dusty",
+    coordinates: { lat: 28.635567, lng: 77.224156 },
+    language: "en",
+    map: "https://w3w.co/outboard.panic.dusty",
+    nearestPlace: "New Delhi, India"
+  },
+  {
+    words: "outboard.bumps.crisp",
+    coordinates: { lat: 28.633921, lng: 77.221983 },
+    language: "en",
+    map: "https://w3w.co/outboard.bumps.crisp",
+    nearestPlace: "New Delhi, India"
+  },
+  // Mumbai
+  {
     words: "organs.slows.among",
-    coordinates: { lat: 18.967712, lng: 72.807673 }, // Mumbai
+    coordinates: { lat: 18.967712, lng: 72.807673 },
     language: "en",
     map: "https://w3w.co/organs.slows.among",
     nearestPlace: "Mumbai, India"
   },
   {
+    words: "useful.mats.whizz",
+    coordinates: { lat: 18.968234, lng: 72.809157 },
+    language: "en",
+    map: "https://w3w.co/useful.mats.whizz",
+    nearestPlace: "Mumbai, India"
+  },
+  // Bangalore
+  {
     words: "reform.wired.plumes",
-    coordinates: { lat: 12.977063, lng: 77.587107 }, // Bangalore
+    coordinates: { lat: 12.977063, lng: 77.587107 },
     language: "en",
     map: "https://w3w.co/reform.wired.plumes",
     nearestPlace: "Bangalore, India"
   },
+  // Kolkata
   {
     words: "earns.mount.unheard",
-    coordinates: { lat: 22.569531, lng: 88.369881 }, // Kolkata
+    coordinates: { lat: 22.569531, lng: 88.369881 },
     language: "en",
     map: "https://w3w.co/earns.mount.unheard",
     nearestPlace: "Kolkata, India"
   },
+  // Chennai
   {
     words: "hobby.thin.bump",
-    coordinates: { lat: 13.084622, lng: 80.248357 }, // Chennai
+    coordinates: { lat: 13.084622, lng: 80.248357 },
     language: "en",
     map: "https://w3w.co/hobby.thin.bump",
     nearestPlace: "Chennai, India"
+  },
+  // Additional locations with varied first words
+  {
+    words: "butter.panel.chats",
+    coordinates: { lat: 12.983611, lng: 77.594449 },
+    language: "en",
+    map: "https://w3w.co/butter.panel.chats",
+    nearestPlace: "Bangalore, India"
+  },
+  {
+    words: "become.outlooks.rigid",
+    coordinates: { lat: 28.630203, lng: 77.218080 },
+    language: "en",
+    map: "https://w3w.co/become.outlooks.rigid",
+    nearestPlace: "New Delhi, India"
   }
 ];
 
@@ -93,55 +134,57 @@ export async function searchW3W(query: string): Promise<any[]> {
         const parts = cleanQuery.split('.');
         const addressParts = address.words.split('.');
         
-        // Check first word
-        if (parts.length >= 1 && parts[0] && addressParts[0].startsWith(parts[0])) {
-          // If only first word entered, it's a match
-          if (parts.length === 1) return true;
-          
-          // Check second word if it exists
-          if (parts.length >= 2 && parts[1] && addressParts[1].startsWith(parts[1])) {
-            // If only first two words entered, it's a match
-            if (parts.length === 2) return true;
-            
-            // Check third word if it exists
-            if (parts.length === 3 && parts[2] && addressParts[2].startsWith(parts[2])) {
-              return true;
-            }
-          }
+        // For different part lengths, apply appropriate matching
+        if (parts.length === 1) {
+          // If only first word entered, match first word prefix
+          return addressParts[0].startsWith(parts[0]);
+        } 
+        else if (parts.length === 2) {
+          // If two words entered, match first word exactly and second word prefix
+          return addressParts[0] === parts[0] && 
+                 addressParts[1].startsWith(parts[1]);
+        }
+        else if (parts.length === 3) {
+          // If three words, match first two exactly and third as prefix
+          return addressParts[0] === parts[0] && 
+                 addressParts[1] === parts[1] &&
+                 addressParts[2].startsWith(parts[2]);
         }
         
         return false;
       });
       
-      // Return results or a subset of mock data that's relevant
+      // Transform w3w data to the same format as our search results
+      const transformW3WToSearchResult = (w3wData: any) => {
+        return {
+          id: w3wData.words,
+          name: w3wData.words,
+          address: w3wData.nearestPlace,
+          coordinates: [w3wData.coordinates.lng, w3wData.coordinates.lat] as [number, number],
+          type: "w3w"
+        };
+      };
+      
+      // Return matching results
       if (filteredMockData.length > 0) {
-        console.log(`Using filtered mock w3w data for "${query}"`);
-        return filteredMockData.slice(0, 3);
+        console.log(`Found ${filteredMockData.length} matching w3w addresses for "${query}"`);
+        // Return the matching results (up to 3)
+        return filteredMockData.slice(0, 3).map(transformW3WToSearchResult);
       } else if (isTypingThirdWord) {
-        // Only return suggestions if we're typing the third word
-        // In a real app, this would be a call to the what3words autosuggest API with:
+        // If we're typing the third word but no matches found,
+        // in a real implementation we'd call the what3words API with:
         // - clip-to-country=IN parameter to limit results to India
-        console.log(`No exact matches for "${query}", returning sample suggestions limited to India`);
-        return mockW3WAddresses.slice(0, 2); // All our mock data is already for India locations
+        console.log(`No exact matches for "${query}", returning empty list`);
+        return []; // Return empty list when no matches instead of random results
       } else {
+        // Not in three-word format yet
         return [];
       }
     }
     
-    // We're not going to try the real API for now since we're getting 402 errors
-    // If this was a real implementation with a working API key, we would use:
-    // const response = await axios.get(`${W3W_API_URL}/autosuggest`, {
-    //   params: {
-    //     input: query,
-    //     clip-to-country: "IN", // Limit to India only
-    //     key: W3W_API_KEY
-    //   }
-    // });
-    
-    // For now, provide some India-only mock suggestions
-    const sampleResults = mockW3WAddresses.slice(0, 2);
-    console.log(`Returning sample w3w addresses for query "${query}" (India only)`);
-    return sampleResults;
+    // For non-what3words searches (e.g., regular text), don't return w3w results
+    // This ensures w3w results only appear when the user is explicitly typing a w3w address
+    return [];
     
     // If real API call fails or has no results, use mock data (filtered by the query)
     // This is for demo purposes only to show the UI flow
